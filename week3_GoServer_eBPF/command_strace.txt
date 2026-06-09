@@ -1,0 +1,3 @@
+sudo strace -f -e trace=network -p <YOUR_PID>
+// for finding where epoll is being used
+sudo strace -f -e trace=epoll_create,epoll_create1,epoll_ctl,epoll_wait,epoll_pwait -p <PID>
