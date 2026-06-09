@@ -1,0 +1,11 @@
+user@krishnaveni:~/go$go run serverB.go
+user@krishnaveni:~/go$go run serverA.go
+user@krishnaveni:~/go$ ps aux | grep serverA
+user        5215  0.0  0.0 1739936 18276 pts/1   Sl+  09:45   0:01 go run serverA.go
+user        5365  0.0  0.0 626204  7464 pts/1    Sl+  09:45   0:00 /tmp/go-build704832125/b001/exe/serverA
+user       13434  0.0  0.0   9040  2656 pts/7    S+   12:40   0:00 grep --color=auto serverA
+
+user@krishnaveni:~/go$sudo python3 Trace_event.py
+user@krishnaveni:~/go$sudo strace -f -p 5365 -e trace=network,read,write,readv,writev,epoll_wait,futex
+user@krishnaveni:~/go$curl http://localhost:8080/
+
