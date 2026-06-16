@@ -12,7 +12,7 @@ b = BPF(text=bpf_text)
 op_map = {
     1: "connect", 2: "bind", 3: "accept4", 
     4: "setsockopt", 5: "getsockopt", 6: "getpeer",
-    7: "read", 8: "write"
+    7: "read", 8: "write", 9: "EPOLL_WAIT", 10: "inet_csk_accept"
 }
 
 # Open a log file to write the results
@@ -23,12 +23,12 @@ def log_and_print(message):
     log_file.write(message + "\n")
     log_file.flush()
 
-header = f"{'UID':<6} {'PID':<8} {'TID':<8} {'APP':<15} {'SYSCALL':<12} {'ARGUMENTS & DETAILS'}"
+header = f"{'UID':<6} {'PID':<8} {'TID':<8} {'APP':<15} {'SYSCALL':<12} {'TIME(s)':<14} {'ARGUMENTS & DETAILS'}"
 log_and_print("Starting raw eBPF Network Trace... Hit Ctrl+C to end.")
 log_and_print(header)
 log_and_print("-" * 90)
 
-def print_event(cpu, data, size):
+def print_event(ctx, data, size):
     event = b["events"].event(data)
     
     app_name = event.comm.decode('utf-8', 'replace')
@@ -45,10 +45,13 @@ def print_event(cpu, data, size):
     
     # Format the rest of the string based on exactly which syscall triggered
     if event.op in (1, 2): # connect or bind
-        ip_str = socket.inet_ntoa(struct.pack("<I", event.ip))
-        details += f"IP: {ip_str:<15} | Port: {event.port}"
+        remote_ip_str = socket.inet_ntoa(struct.pack("<I", event.daddr))
+        details += f"remote: {remote_ip_str}:{event.dport}"
     elif event.op == 3: # accept4
-        details += f"Flags: {event.flags}"
+        local_ip_str = socket.inet_ntoa(struct.pack("<I", event.saddr))
+
+        details += f"local: {local_ip_str}:{event.sport}"
+        # details += f"Flags: {event.flags}"
     elif event.op in (4, 5): # setsockopt or getsockopt
         details += f"Level: {event.level:<2} | OptName: {event.optname}"
     elif event.op in [7, 8]:  # OP_READ=7, OP_WRITE=8
@@ -57,19 +60,27 @@ def print_event(cpu, data, size):
             # Decode bytes to text, ignore garbage binary, replace newlines with a visual separator
             payload = event.payload.decode('utf-8', 'ignore').replace('\n', ' | ').replace('\r', '')
         except:
-            pass
-        
+            pass        
         details += f"Bytes: {event.count} | Data: {payload[:80]}"
-    
+    elif event.op == 9:
+        details += f"Maxevent: {event.maxevents}"
+    elif event.op == 10: # inet_csk_accept
+        remote_ip_str = socket.inet_ntoa(struct.pack("<I", event.daddr))
+        local_ip_str = socket.inet_ntoa(struct.pack("<I", event.saddr))
 
-    row = f"{event.uid:<6} {event.pid:<8} {event.tid:<8} {app_name:<15} {syscall_name:<12} {details}"
+        details += f"local: {local_ip_str:<15}{event.sport} | remote: {remote_ip_str}{event.dport}"
+
+    time_s = event.timestamp_ns / 1000000000.0
+    time_str = f"{time_s:.8f}"
+
+    row = f"{event.uid:<6} {event.pid:<8} {event.tid:<8} {app_name:<15} {syscall_name:<12} {time_str:<14} {details}"
     log_and_print(row)
 
 # Hook up the callback and start listening
-b["events"].open_perf_buffer(print_event, page_cnt=64)
+b["events"].open_ring_buffer(print_event)
 try:
     while True:
-        b.perf_buffer_poll()
+        b.ring_buffer_poll(timeout=500)
 except KeyboardInterrupt:
     log_and_print("\nTrace stopped by user. Log saved to ebpf_syscall_analysis.log")
     log_file.close()
