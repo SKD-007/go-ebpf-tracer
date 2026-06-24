@@ -1,0 +1,36 @@
+Starting raw eBPF Network Trace... Hit Ctrl+C to end.
+UID    PID      TID      APP             SYSCALL      P_GOID   W_GOID   TIME(s)        ARGUMENTS & DETAILS
+------------------------------------------------------------------------------------------
+1000   7392     7392     server1         accept4      1        1        9002.95901930  FD: 4 | local: 0.0.0.0:0
+1000   7392     7392     server1         accept4      1        1        9002.95922859  FD: 7 | local: 0.0.0.0:0
+1000   7392     7392     server1         read         6        6        9002.95948896  FD: 7 | Bytes: 78 | Data: GET / HTTP/1.1 | Host: localhost:8081 | User-Agent: curl/8.21.0 | Accept: */* | 
+1000   7392     7395     server1         read         5        5        9002.95949597  FD: 4 | Bytes: 78 | Data: GET / HTTP/1.1 | Host: localhost:8081 | User-Agent: curl/8.21.0 | Accept: */* | 
+1000   7392     7392     server1         read         6        6        9002.95982594  FD: 8 | Bytes: 285 | Data: TZif2
+1000   7392     7392     server1         write        6        6        9002.95986645  FD: 6 | Bytes: 8 | Data: 
+1000   7392     7394     server1         read         0        0        9002.96003502  FD: 6 | Bytes: 8 | Data: 
+1000   7392     7395     server1         read         23       23       9002.96014075  FD: 8 | Bytes: 920 | Data: # This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(
+1000   7392     7395     server1         read         23       23       9002.96017298  FD: 8 | Bytes: 594 | Data: # /etc/nsswitch.conf | # | # Example configuration of GNU Name Service Switch fu
+1000   7392     7395     server1         read         23       23       9002.96022290  FD: 8 | Bytes: 273 | Data: 127.0.0.1	localhost.localdomain	localhost | ::1		localhost6.localdomain6	localho
+1000   7392     7395     server1         connect      23       23       9002.96025890  FD: 8 | remote: 127.0.0.1:53
+1000   7392     7395     server1         connect      23       23       9002.96034882  FD: 8 | remote: 0.0.0.1:53
+1000   7392     7395     server1         write        8        8        9002.96038343  FD: 6 | Bytes: 8 | Data: 
+1000   7392     7395     server1         connect      24       24       9002.96039923  FD: 8 | remote: 0.0.0.1:8082
+1000   7392     7392     server1         read         0        0        9002.96040432  FD: 6 | Bytes: 8 | Data: 
+1000   7392     7395     server1         connect      25       25       9002.96057435  FD: 9 | remote: 0.0.0.1:8082
+1000   7392     7395     server1         write        0        0        9002.96060094  FD: 6 | Bytes: 8 | Data: 
+1000   7392     7392     server1         write        5        27       9002.96170981  FD: 9 | PCONN: 0x3cf4c3f78500 | Bytes: 142 | Data: POST / HTTP/1.1 | Host: localhost:8082 | User-Agent: Go-http-client/1.1 | Conten
+1000   7392     7392     server1         read         0        0        9002.96172235  FD: 6 | Bytes: 8 | Data: 
+1000   7392     7395     server1         write        6        10       9002.96173101  FD: 8 | PCONN: 0x3cf4c3e18500 | Bytes: 142 | Data: POST / HTTP/1.1 | Host: localhost:8082 | User-Agent: Go-http-client/1.1 | Conten
+1000   7392     7395     server1         write        0        0        9002.96174192  FD: 6 | Bytes: 8 | Data: 
+1000   7392     7392     server1         read         0        0        9002.96178364  FD: 6 | Bytes: 8 | Data: 
+1000   7392     7392     server1         read         6        9        9002.96248134  FD: 8 | PCONN: 0x3cf4c3e18500 | Bytes: 102 | Data: HTTP/1.1 200 OK | Content-Type: text/plain | Date: Wed, 24 Jun 2026 07:50:59 GMT
+1000   7392     7392     server1         write        6        6        9002.96302154  FD: 7 | Bytes: 102 | Data: HTTP/1.1 200 OK | Content-Type: text/plain | Date: Wed, 24 Jun 2026 07:50:59 GMT
+1000   7392     7392     server1         read         5        26       9002.96305253  FD: 9 | PCONN: 0x3cf4c3f78500 | Bytes: 102 | Data: HTTP/1.1 200 OK | Content-Type: text/plain | Date: Wed, 24 Jun 2026 07:50:59 GMT
+1000   7392     7392     server1         write        5        5        9002.96313860  FD: 4 | Bytes: 102 | Data: HTTP/1.1 200 OK | Content-Type: text/plain | Date: Wed, 24 Jun 2026 07:50:59 GMT
+1000   7392     7392     server1         accept4      1        1        9002.96853265  FD: 4 | local: 0.0.0.0:0
+1000   7392     7392     server1         read         11       11       9002.96859060  FD: 4 | Bytes: 78 | Data: GET / HTTP/1.1 | Host: localhost:8081 | User-Agent: curl/8.21.0 | Accept: */* | 
+1000   7392     7392     server1         write        11       27       9002.96904082  FD: 9 | PCONN: 0x3cf4c3f78500 | Bytes: 142 | Data: POST / HTTP/1.1 | Host: localhost:8082 | User-Agent: Go-http-client/1.1 | Conten
+1000   7392     7392     server1         read         11       26       9002.97079219  FD: 9 | PCONN: 0x3cf4c3f78500 | Bytes: 102 | Data: HTTP/1.1 200 OK | Content-Type: text/plain | Date: Wed, 24 Jun 2026 07:50:59 GMT
+1000   7392     7392     server1         write        11       11       9002.97091417  FD: 4 | Bytes: 102 | Data: HTTP/1.1 200 OK | Content-Type: text/plain | Date: Wed, 24 Jun 2026 07:50:59 GMT
+1000   7392     7396     server1         write        0        0        9002.97212817  FD: 6 | Bytes: 8 | Data: 
+1000   7392     7392     server1         read         0        0        9002.97385636  FD: 6 | Bytes: 8 | Data: 
