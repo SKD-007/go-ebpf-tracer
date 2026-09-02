@@ -1,0 +1,22 @@
+# Project GO Server Tracer Using eBPF
+
+## Tasks
+
+### tracing.bpf.c
+- [] Trace Close syscall for FD  
+
+### tracing.py
+- [] Handle Close syscall for FD  
+
+### logtracing.py
+- [] Handle Close syscall for FD  
+
+### main.go
+- [] Maybe remove the mu.Lock() in the analyse function and instead just remember the size and leave it alone, think abt it
+	mu.Lock()
+	defer mu.Unlock() 
+
+
+## Point to Convey to Professor
+- [] tcp-sequence will not unique always but the probability of collision is very low, as it is picked random for a connection.
+to get the same tcp seq, OS has to Reuse the exact same ephemeral port and also Randomly pick the exact same sequence number out of a 4.29 billion number range. also When that HTTP request finishes and the connection closes, Linux puts port 45092 into a state called TIME_WAIT for 60 seconds so if we choose the batch of less than that then we wont have much issue.
