@@ -1,0 +1,10 @@
+#binary file
+server1
+server2
+client
+
+#log file
+*.log
+
+#text file 
+*.txt
