@@ -6,6 +6,22 @@ struct bpf_wq { void *ptr; };
 #ifndef BPF_STORE_REL
 #define BPF_STORE_REL 2
 #endif
+
+#ifndef BPF_ADDR_SPACE_CAST
+#define BPF_ADDR_SPACE_CAST 10
+#endif
+
+// Missing Unix socket cgroup hooks in Linux 6.8+
+#ifndef BPF_CGROUP_UNIX_CONNECT
+enum {
+    BPF_CGROUP_UNIX_CONNECT = 49,
+    BPF_CGROUP_UNIX_SENDMSG,
+    BPF_CGROUP_UNIX_RECVMSG,
+    BPF_CGROUP_UNIX_GETPEERNAME,
+    BPF_CGROUP_UNIX_GETSOCKNAME,
+};
+#endif
+
 // ---------------------------------------------------
 
 #include <uapi/linux/ptrace.h>
@@ -536,7 +552,7 @@ TRACEPOINT_PROBE(syscalls, sys_exit_accept4) {
 
         // Extracting the TCP sequence number 
         struct tcp_sock *ts = tcp_sk(sk);
-        bpf_probe_read_kernel(&datap->tcp_seq, sizeof(datap->tcp_seq), &ts->rcv_nxt);
+        bpf_probe_read_kernel(&datap->tcp_seq, sizeof(datap->tcp_seq), &ts->copied_seq);
         
         u16 family = 0;
         bpf_probe_read_kernel(&family, sizeof(family), &sk->__sk_common.skc_family);

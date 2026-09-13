@@ -2,6 +2,9 @@
 server1
 server2
 client
+server2A
+server2B
+main
 
 #log file
 *.log

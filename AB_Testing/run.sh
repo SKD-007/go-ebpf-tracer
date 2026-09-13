@@ -39,19 +39,28 @@ sleep 2
 sudo python3 tracing.py ./client &
 TC_PID=$!
 
+sleep 2
+
 ./main > analysis.txt &
 MAIN_PID=$!
 
-sleep 3
+echo "done running tracing.py"
+sleep 5
 
 python3 logtracing.py ebpf_syscall_analysis_server1.log  &
 LOG1_PID=$!
 
+sleep 2
+
 python3 logtracing.py ebpf_syscall_analysis_server2A.log &
 LOG2A_PID=$!
 
+sleep 2
+
 python3 logtracing.py ebpf_syscall_analysis_server2B.log &
 LOG2B_PID=$!
+
+sleep 2
 
 python3 logtracing.py ebpf_syscall_analysis_client.log &
 LOGC_PID=$!

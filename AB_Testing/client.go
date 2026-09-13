@@ -45,9 +45,12 @@ func main() {
 	// Reusing the same client is critical for connection pooling
 	Client := &http.Client{
 		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+        		DisableKeepAlives: true,
+    		},
 	}
 
-	const numRequests = 2
+	const numRequests = 8
 	var wg sync.WaitGroup
 
 	fmt.Printf("[*] Starting %d concurrent requests...\n", numRequests)
