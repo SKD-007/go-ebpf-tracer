@@ -2,16 +2,51 @@ package main
 
 import (
 	"bytes"
-	"fmt"
-	"io"
-	"log"
-	// "net"
-	// "strconv"
+	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
-	"time"
+	"runtime"
+	"strconv"
 	"sync"
+	"time"
+
+	"ebpftracer/tracer"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
+
+// customTransport intercepts outbound HTTP requests to set attributes directly
+// on the client span created by otelhttp.
+type customTransport struct {
+	rt http.RoundTripper
+}
+
+func (t *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Retrieve the active client span created by otelhttp from request context
+	span := trace.SpanFromContext(req.Context())
+	if reqIDStr := req.Header.Get("X-Payload"); reqIDStr != "" {
+		if reqID, err := strconv.Atoi(reqIDStr); err == nil {
+			span.SetAttributes(attribute.Int("server.request_id", reqID))
+		}
+	}
+	return t.rt.RoundTrip(req)
+}
+
+func getGoroutineID() uint64 {
+	b := make([]byte, 64)
+	b = b[:runtime.Stack(b, false)]
+
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	b = b[:bytes.IndexByte(b, ' ')]
+
+	n, _ := strconv.ParseUint(string(b), 10, 64)
+	return n
+}
 
 func generate_score(cohort string) int {
 	if cohort == "Server2B" {
@@ -40,18 +75,34 @@ func sendScoreToCentralServer(client *http.Client, cohort string, score int) {
 	}
 }
 
+type reqCounter struct {
+	count int
+	mu    sync.Mutex
+}
 
 func main() {
 	// Reusing the same client is critical for connection pooling
+	ctx := context.Background()
+
+	shutdown, err := tracer.InitTracer(ctx, "client", "localhost:4317")
+	if err != nil {
+		log.Fatalf("Error while initiating the OTPL : %v", err)
+	}
+	defer shutdown(ctx)
+
+	tr := otel.Tracer("client")
+
+	// Wrap http.DefaultTransport with customTransport inside otelhttp.NewTransport
 	Client := &http.Client{
 		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-        		DisableKeepAlives: true,
-    		},
+		Transport: otelhttp.NewTransport(&customTransport{
+			rt: http.DefaultTransport,
+		}),
 	}
 
-	const numRequests = 8
+	const numRequests = 500
 	var wg sync.WaitGroup
+	var requestid reqCounter
 
 	fmt.Printf("[*] Starting %d concurrent requests...\n", numRequests)
 
@@ -62,34 +113,47 @@ func main() {
 		go func(id int) {
 			defer wg.Done()
 
-			Data := []byte("0")
-			resp1, err1 := Client.Post("http://localhost:8081", "text/plain", bytes.NewBuffer(Data))
-			if err1 != nil {
-				log.Printf("Request %d failed: %v", id, err1)
+			reqCtx, span := tr.Start(ctx, fmt.Sprintf("ClientWorker-%d", id))
+			defer span.End()
+
+			goid := getGoroutineID()
+			var reqid int
+
+			requestid.mu.Lock()
+			requestid.count += 1
+			reqid = requestid.count
+			requestid.mu.Unlock()
+
+			span.SetAttributes(
+				attribute.Int64("go.goroutine_id", int64(goid)),
+				attribute.Int("client.worker_id", id),
+				attribute.Int("server.request_id", reqid),
+			)
+
+			Data := []byte(strconv.Itoa(reqid))
+			req1, err := http.NewRequestWithContext(reqCtx, "POST", "http://localhost:8081", bytes.NewBuffer(Data))
+			if err != nil {
+				log.Printf("Request %d failed: %v", id, err)
 				return
 			}
-			resp1.Body.Close()
 
-			cohort_byte, _ := io.ReadAll(resp1.Body)
-			cohort := string(cohort_byte)
+			req1.Header.Set("Content-Type", "text/plain")
+			req1.Header.Set("X-Payload", strconv.Itoa(reqid))
 
-			score := generate_score(cohort)
-
-			sendScoreToCentralServer(Client, cohort, score)
-
-			// resp2, err2 := Client.Post("http://localhost:9090", "text/plain", bytes.NewBuffer([]byte("not required")))
-			// if err2 != nil{
-			// 	log.Printf("Reqest to main failed")
-			// 	return
-			// }
-
-			// resp2.Body.Close()
+			resp1, err1 := Client.Do(req1)
+			if err1 == nil {
+				resp1.Body.Close()
+			}
 
 		}(i)
 	}
 
-	// Wait for all 100 goroutines to finish
+	// Wait for all goroutines to finish
 	wg.Wait()
-	// Inside your Go client main() function, after wg.Wait()
+
+	if err := shutdown(ctx); err != nil {
+		log.Printf("Error shutting down tracer: %v", err)
+	}
+
 	fmt.Println("[*] Experiment done")
 }

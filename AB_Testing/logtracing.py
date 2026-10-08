@@ -36,20 +36,24 @@ name_without_ext, _ = os.path.splitext(base_name)
 
 output_filename = f"traced_{name_without_ext}.txt"
 
-file_w = open(output_filename, "w")
+file_w = open(output_filename, "w", buffering=1)
 
-class Tee:
-    def __init__(self, *files):
-        self.files = files
-    def write(self, obj):
-        for f in self.files:
-            f.write(obj)
-            f.flush()
-    def flush(self):
-        for f in self.files:
-            f.flush()
+# class Tee:
+#     def __init__(self, *files):
+#         self.files = files
+#     def write(self, obj):
+#         for f in self.files:
+#             f.write(obj)
+#             f.flush()
+#     def flush(self):
+#         for f in self.files:
+#             f.flush()
 
-sys.stdout = Tee(sys.stdout, file_w)
+# sys.stdout = Tee(sys.stdout, file_w)
+
+# NOTE This is done temporary to print only in the file
+sys.stdout = file_w
+
 
 CENTRAL_SERVER_URL = "http://127.0.0.1:9090/api/traces"
 # TODO: In the future, extract SERVICE_NAME from environment variables or input flags
@@ -209,8 +213,12 @@ def print_details(goid_data):
         raw_write = event.get('write_data', '') or ''
         write_payload = raw_write.split('Data: ')[-1] if 'Data: ' in raw_write else 'N/A'
         
-        print(f"    ├─ Request:       {read_payload}")
-        print(f"    ├─ Response:      {write_payload}")
+        if( syscall_type == 'accept'):
+            print(f"    ├─ Request:       {read_payload}")
+            print(f"    ├─ Response:      {write_payload}")
+        else:
+            print(f"    ├─ Request:        {write_payload}")
+            print(f"    ├─ Response:       {read_payload}")
 
         # Calculate Duration
         if read_time_str and write_time_str:
@@ -263,6 +271,14 @@ def print_details(goid_data):
             except ValueError:
                 pass
 
+        # Assign request/response payloads based on event perspective
+        if event_type == 'connect':  # Outbound (Client perspective)
+            req_payload = event_data.get('write_data') or ''  # Write = Outgoing Request
+            res_payload = event_data.get('read_data') or ''   # Read  = Incoming Response
+        else:                        # Inbound (Server perspective: accept)
+            req_payload = event_data.get('read_data') or ''    # Read  = Incoming Request
+            res_payload = event_data.get('write_data') or ''   # Write = Outgoing Response
+
         return {
             "type": event_type,
             "fd": event_data.get('fd'),
@@ -275,9 +291,9 @@ def print_details(goid_data):
             "write_time": w_time,
             "duration_ms": duration_ms,
 
-            # Truncate payloads to 500 chars to avoid crashing the central DB with massive files
-            "request_payload": (event_data.get('read_data') or '')[:500],
-            "response_payload": (event_data.get('write_data') or '')[:500]
+            # Correctly mapped payloads truncated to 500 chars
+            "request_payload": req_payload[:500],
+            "response_payload": res_payload[:500]
         }
 
     # Package Accept and Connect if they exist
@@ -537,37 +553,47 @@ line_buffer = ""
 
 # Main loop that iterates through the log file and associates each syscall to their
 # appropriate function to handle then
-while True:
-    chunk = file_r.readline()
-    if chunk is None:
-        time.sleep(0.1)
-        continue
 
-    line_buffer += chunk
+try:
+    while True:
+        chunk = file_r.readline()
+        if chunk is None:
+            time.sleep(0.1)
+            continue
 
-    if not line_buffer.endswith('\n'):
-        continue
+        line_buffer += chunk
 
-    full_line = line_buffer.strip()
-    line_buffer = ""
+        if not line_buffer.endswith('\n'):
+            continue
 
-    if not full_line:
-        continue
+        full_line = line_buffer.strip()
+        line_buffer = ""
 
-    lis = full_line.split()
-    
-    try:
-        if lis[4] == "read":
-            handle_read(full_line)
-        elif lis[4] == "write":
-            handle_write(full_line)
-        elif lis[4] == "accept4":
-            handle_accept(lis)
-        elif lis[4] == "connect":
-            handle_connect(lis)
-                
-    except IndexError:
-        continue  
+        if not full_line:
+            continue
+
+        lis = full_line.split()
+        
+        try:
+            if lis[4] == "read":
+                handle_read(full_line)
+            elif lis[4] == "write":
+                handle_write(full_line)
+            elif lis[4] == "accept4":
+                handle_accept(lis)
+            elif lis[4] == "connect":
+                handle_connect(lis)
+                    
+        except IndexError:
+            continue  
+except KeyboardInterrupt:
+    print("\n[+] Stopping tracer and flushing logs to file...", file=sys.stderr)
+
+finally:
+    file_w.flush()
+    file_w.close()
+    file_r.close()
+
 
 print(f"Totol incoming request = {accept_count}")
 print(f"Totol outgoing request = {connect_count}")

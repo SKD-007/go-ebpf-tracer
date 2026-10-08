@@ -78,7 +78,7 @@ op_map = {
 log_file = open(f"ebpf_syscall_analysis_{app_base_name}.log", "w")
 
 def log_and_print(message):
-    print(message)
+    # print(message)
     log_file.write(message + "\n")
     log_file.flush()
 
@@ -125,7 +125,7 @@ def print_event(ctx, data, size):
             payload = event.payload.decode('utf-8', 'ignore').replace('\n', ' | ').replace('\r', '')
         except:
             pass        
-        details += f"Bytes: {event.count} | tcp_seq: {event.tcp_seq} | Data: {payload[:80]}"
+        details += f"Bytes: {event.count} | tcp_seq: {event.tcp_seq} | Data: {payload[:400]}"
     elif event.op == 9:
         details += f"Maxevent: {event.maxevents}"
     elif event.op == 10: # inet_csk_accept
