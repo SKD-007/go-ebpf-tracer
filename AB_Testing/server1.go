@@ -74,11 +74,11 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		attribute.Int64("server.request_id", int64(reqid)),
 	)
 
-	bodyBytes, _ := io.ReadAll(r.Body)
-	num, _ := strconv.Atoi(string(bodyBytes))
+	// bodyBytes, _ := io.ReadAll(r.Body)
+	// num, _ := strconv.Atoi(string(bodyBytes))
 
-	var tempnum int = num + 1
-	log.Printf("Server 1 received %d, Server1 sent : %d\n", num, tempnum)
+	// var tempnum int = num + 1
+	// log.Printf("Server 1 received %d, Server1 sent : %d\n", num, tempnum)
 
 	dataToSend := []byte(strconv.Itoa(reqid))
 

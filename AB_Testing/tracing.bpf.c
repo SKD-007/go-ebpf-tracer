@@ -46,7 +46,7 @@ enum {
 
 #define MAX_PAYLOAD_SIZE 256
 
-BPF_RINGBUF_OUTPUT(events, 1024*8 );
+BPF_RINGBUF_OUTPUT(events, 1024*512 );
 
 struct rw_args_t {
     u32 fd;
@@ -89,7 +89,7 @@ struct data_t {
 };
 
 // map persisConn pointer -> parent Goid
-BPF_HASH(checkout_map,u64,u64);
+BPF_HASH(checkout_map,u64,u64 ); // 65536
 // map worker goid - persisConn pointer
 BPF_HASH(worker_map,u64,u64) ;
 

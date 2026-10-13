@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
+	// "io"
 	"log"
-	"net"
+	// "net"
 	"net/http"
 	"strconv"
 	"bytes"
@@ -55,25 +55,25 @@ func Server3(w http.ResponseWriter, r *http.Request) {
 	)
 
 	// To find the IPV version of the server3
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-    if err != nil {
-        fmt.Println("Error parsing remote address:", err)
-    }
+	// host, _, err := net.SplitHostPort(r.RemoteAddr)
+    // if err != nil {
+    //     fmt.Println("Error parsing remote address:", err)
+    // }
 
-    clientIP := net.ParseIP(host)
+    // clientIP := net.ParseIP(host)
 
-    if clientIP.To4() != nil {
-        fmt.Println("The Server3 connected using IPv4")
-    } else {
-        fmt.Println("The Server3 connected using IPv6")
-    }
+    // if clientIP.To4() != nil {
+    //     fmt.Println("The Server3 connected using IPv4")
+    // } else {
+    //     fmt.Println("The Server3 connected using IPv6")
+    // }
 
-	bodyBytes, _ := io.ReadAll(r.Body)
-	num , _ := strconv.Atoi(string(bodyBytes))
+	// bodyBytes, _ := io.ReadAll(r.Body)
+	// num , _ := strconv.Atoi(string(bodyBytes))
 
-	// Server3 modifies the data by adding 3
-	var tempnum int = num + 3
-	log.Printf("Server3 received %d, Server3 sent : %d\n",num,tempnum)
+	// // Server3 modifies the data by adding 3
+	// var tempnum int = num + 3
+	// log.Printf("Server3 received %d, Server3 sent : %d\n",num,tempnum)
 
 	dataToSend := []byte(strconv.Itoa(reqid))
 

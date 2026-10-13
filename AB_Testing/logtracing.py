@@ -595,7 +595,7 @@ finally:
     file_r.close()
 
 
-print(f"Totol incoming request = {accept_count}")
-print(f"Totol outgoing request = {connect_count}")
+print(f"Total incoming request = {accept_count}")
+print(f"Total outgoing request = {connect_count}")
 file_r.close()
 file_w.close()

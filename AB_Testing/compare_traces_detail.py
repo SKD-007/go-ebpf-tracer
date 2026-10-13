@@ -121,9 +121,9 @@ def main():
     print(f"[*] Found {len(proxy_events)} proxy request(s). Verifying against Jaeger...\n")
     
     passed_count = 0
-    
+    count = 0
     for event in proxy_events:
-        print(f"=== GoID: {event['goid']} ===")
+        print(f"{count}=== GoID: {event['goid']} ===")
         print(f" ├─ Trace ID    : {event['trace_id']}")
         print(f" ├─ ACCEPT Span : {event['accept_span_id']}")
         print(f" ├─ CONNECT Span: {event['connect_span_id']}")
@@ -135,7 +135,7 @@ def main():
         )
         
         print(f" └─ Verification: {status} {reason}\n")
-        
+        count += 1
         if status == "[PASS]":
             passed_count += 1
 

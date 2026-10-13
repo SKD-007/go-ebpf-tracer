@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	// "go.opentelemetry.io/auto/sdk"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
@@ -21,7 +22,7 @@ func InitTracer(ctx context.Context, servicename string, otlpEndpoint string)( f
 	exporter, err := otlptracegrpc.New( ctx,
 						otlptracegrpc.WithEndpoint(otlpEndpoint),
 						otlptracegrpc.WithInsecure(),
-						otlptracegrpc.WithTimeout(5*time.Second),
+						otlptracegrpc.WithTimeout(15*time.Second),
 	)
 
 	if err != nil {
@@ -44,7 +45,11 @@ func InitTracer(ctx context.Context, servicename string, otlpEndpoint string)( f
 	))
 
 	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exporter),
+		sdktrace.WithBatcher(exporter,
+		sdktrace.WithMaxQueueSize(20000),
+		sdktrace.WithMaxExportBatchSize(2048),
+		sdktrace.WithBatchTimeout(2*time.Second),
+		),
 		sdktrace.WithResource(res),
 	)
 	otel.SetTracerProvider(tp)
