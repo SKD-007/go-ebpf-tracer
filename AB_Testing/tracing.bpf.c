@@ -236,7 +236,7 @@ int trace_worker_loop(struct pt_regs *ctx){
         bpf_probe_read(&persisConn, sizeof(persisConn), (void *)(ctx->sp + 8));
     }
 
-    bpf_trace_printk("Worker | Worker GOID: %d | PCONN: %llx\\n", worker_goid, persisConn);
+    // bpf_trace_printk("Worker | Worker GOID: %d | PCONN: %llx\\n", worker_goid, persisConn);
 
     if(persisConn != 0){
         worker_map.update(&worker_goid, &persisConn);
@@ -250,64 +250,6 @@ int trace_put_Conn(struct pt_regs * ctx){
     checkout_map.delete(&persisConn);
     return 0;
 }
-
-
-// TRACEPOINT_PROBE(syscalls, sys_enter_connect) {
-
-//     u64 id = bpf_get_current_pid_tgid();
-
-//     struct data_t data = {};
-//     populate_base(&data, OP_CONNECT, args->fd);
-
-//     struct sockaddr_in addr = {};
-//     bpf_probe_read_user(&addr, sizeof(addr), args->uservaddr);
-
-//     if (addr.sin_family == AF_INET) {
-//         data.daddr = addr.sin_addr.s_addr;
-//         data.dport = bpf_ntohs(addr.sin_port);
-//         data.sport = 0;
-//         data.saddr = 0;
-//         // events.ringbuf_output(&data, sizeof(data), 0);
-//         active_connects.update(&id,&data);
-        
-//     }
-//     else if (addr.sin_family == AF_INET6) { // AF_INET6 is family 10
-//         // Handle IPv6 / Go's Dual-Stack connections
-//         struct sockaddr_in6 addr6 = {};
-//         bpf_probe_read_user(&addr6, sizeof(addr6), args->uservaddr);
-        
-//         // Trick: Grab the last 4 bytes of the 16-byte IPv6 address.
-//         // For IPv4-mapped addresses (::ffff:127.0.0.1), this extracts the exact IPv4 IP!
-//         __builtin_memcpy(&data.daddr, (char *)&addr6.sin6_addr + 12, 4);
-        
-//         data.dport = bpf_ntohs(addr6.sin6_port);
-//         data.sport = 0;
-//         data.saddr = 0;
-//         // events.ringbuf_output(&data, sizeof(data), 0);
-//         active_connects.update(&id,&data);
-
-//     }
-//     return 0;
-// }
-
-// TRACEPOINT_PROBE(syscalls, sys_exit_connect) {
-//     u64 id = bpf_get_current_pid_tgid();
-    
-//     //Look up the data we saved in sys_enter_connect
-//     struct data_t *datap = active_connects.lookup(&id);
-//     if (!datap) {
-//         return 0; // Missed the entry event, or not an IPv4/IPv6 connection
-//     }
-
-//     // Check if the connect() call succeeded (ret == 0 or -EINPROGRESS)
-//     if (args->ret == 0 || args->ret == -115) { 
-//         events.ringbuf_output(datap, sizeof(struct data_t), 0);
-//     }
-
-//     // delete the map entry to prevent memory leaks
-//     active_connects.delete(&id);
-//     return 0;
-// }
 
 TRACEPOINT_PROBE(syscalls, sys_enter_connect) {
     u64 id = bpf_get_current_pid_tgid();
@@ -446,62 +388,6 @@ TRACEPOINT_PROBE(syscalls, sys_exit_connect) {
     return 0;
 }
 
-// TRACEPOINT_PROBE(syscalls, sys_enter_accept4) {
-//     u64 id = bpf_get_current_pid_tgid();
-    
-//     // args->upeer_sockaddr is the pointer where the kernel will write the IP
-//     struct sockaddr *addr = (struct sockaddr *)args->upeer_sockaddr;
-//     active_accepts.update(&id, &addr);
-//     return 0;
-// }
-
-// TRACEPOINT_PROBE(syscalls, sys_exit_accept4) {
-//     u64 id = bpf_get_current_pid_tgid();
-    
-//     // 1. Look up the pointer we saved
-//     struct sockaddr **addr_ptr = active_accepts.lookup(&id);
-//     if (!addr_ptr) return 0;
-
-//     // 2. The return value of accept4 IS the new File Descriptor!
-//     long new_fd = args->ret;
-    
-//     // If accept was successful (fd > 0)
-//     if (new_fd > 0) {
-//         struct data_t data = {};
-//         populate_base(&data, OP_ACCEPT4, new_fd);
-        
-//         // 1. Peek at the family first
-//         short family = 0;
-//         bpf_probe_read_user(&family, sizeof(family), *addr_ptr);
-
-//         // 2. Handle based on the specific struct size and offsets
-//         if (family == AF_INET) {
-//             struct sockaddr_in addr4 = {};
-//             bpf_probe_read_user(&addr4, sizeof(addr4), *addr_ptr);
-            
-//             data.daddr = addr4.sin_addr.s_addr;
-//             data.dport = bpf_ntohs(addr4.sin_port);
-            
-//             events.ringbuf_output(&data, sizeof(data), 0);
-            
-//         } else if (family == 10) { // AF_INET6
-//             struct sockaddr_in6 addr6 = {};
-//             bpf_probe_read_user(&addr6, sizeof(addr6), *addr_ptr);
-            
-//             // Extract the last 4 bytes of the IPv4-mapped IPv6 address
-//             __builtin_memcpy(&data.daddr, (char *)&addr6.sin6_addr + 12, 4);
-//             data.dport = bpf_ntohs(addr6.sin6_port);
-            
-//             events.ringbuf_output(&data, sizeof(data), 0);
-//         }
-        
-//     }
-    
-//     active_accepts.delete(&id);
-//     return 0;
-// }
-
-
 TRACEPOINT_PROBE(syscalls, sys_enter_accept4) {
     u64 id = bpf_get_current_pid_tgid();
     
@@ -605,12 +491,6 @@ TRACEPOINT_PROBE(syscalls, sys_exit_accept4) {
 
 // For finding parent -> child relation in goid's
 int trace_newproc1_enter(struct pt_regs *ctx) {
-    // u64 parent_goid = get_goid(); 
-    // u32 tid = bpf_get_current_pid_tgid();
-    
-    // newproc1_active.update(&tid, &parent_goid);
-    
-    // return 0;
 
     char *callergp = (char *)ctx->bx; 
     
@@ -762,83 +642,3 @@ struct data_t data = {};
     active_writes.delete(&id);
     return 0;
 }
-
-/*
-// Uprobe on net/http.(*persistConn).writeLoop & readLoop
-int trace_worker_loop(struct pt_regs *ctx){
-    u64 worker_goid = get_goid();
-    u64 persisConn = ctx->ax;
-
-    // u64 * parent_goid = checkout_map.lookup(&persisConn);
-    // if(parent_goid){
-    //     worker_map.update(&worker_goid,parent_goid);
-    // }
-
-    if(persisConn != 0){
-        worker_map.update(&worker_goid,&persisConn);
-    }
-    return 0;
-}
-*/
-
-// TRACEPOINT_PROBE(syscalls, sys_enter_bind) {
-//  
-//    struct data_t data = {};
-//     populate_base(&data, OP_BIND, args->fd);
-
-//     struct sockaddr_in addr = {};
-//     bpf_probe_read_user(&addr, sizeof(addr), args->umyaddr);
-//     if (addr.sin_family == AF_INET) {
-//         data.ip = addr.sin_addr.s_addr;
-//         data.port = bpf_ntohs(addr.sin_port);
-//         events.ringbuf_output(&data, sizeof(data), 0);
-//         // events.perf_submit(args, &data, sizeof(data));
-//     }
-//     return 0;
-// }
-
-// TRACEPOINT_PROBE(syscalls, sys_enter_setsockopt) {
-//     struct data_t data = {};
-//     populate_base(&data, OP_SETSOCKOPT, args->fd);
-//     data.level = args->level;
-//     data.optname = args->optname;
-//     events.ringbuf_output(&data, sizeof(data), 0);
-//     // events.perf_submit(args, &data, sizeof(data));
-    
-//     return 0;
-// }
-
-// TRACEPOINT_PROBE(syscalls, sys_enter_getsockopt) {
-//     struct data_t data = {};
-//     populate_base(&data, OP_GETSOCKOPT, args->fd);
-//     data.level = args->level;
-//     data.optname = args->optname;
-//     events.ringbuf_output(&data, sizeof(data), 0);
-//     // events.perf_submit(args, &data, sizeof(data));
-//     return 0;
-// }
-
-// TRACEPOINT_PROBE(syscalls, sys_enter_getpeername) {
-//     struct data_t data = {};
-//     populate_base(&data, OP_GETPEERNAME, args->fd);
-//     events.ringbuf_output(&data, sizeof(data), 0);
-//     // events.perf_submit(args, &data, sizeof(data));
-//     return 0;
-// }
-
-// TRACEPOINT_PROBE(syscalls, sys_enter_epoll_pwait) {
-//     struct data_t data = {};
-    
-//     // args->epfd is the epoll instance being waited on
-//     populate_base(&data, OP_EPOLL_WAIT, args->epfd); 
-    
-//     data.maxevents = args->maxevents;
-//     events.ringbuf_output(&data, sizeof(data), 0);
-//     // events.perf_submit(args, &data, sizeof(data));
-    
-//     return 0;
-// }
-
-
-
-

@@ -3,7 +3,8 @@ import requests
 import sys
 
 JAEGER_API_URL = "http://localhost:16686/api/traces/"
-FILE_PATH = "traced_ebpf_syscall_analysis_server1.txt"
+FILE_PATH = "traced_ebpf_syscall_analysis_server1.txt"  # Set to your eBPF output log path
+
 
 def parse_server1_ebpf_logs(file_path):
     """
@@ -20,20 +21,27 @@ def parse_server1_ebpf_logs(file_path):
     # Split the file by the GoID header block
     goid_blocks = re.split(r'=== GoID: (\d+) ===', content)
     
-    events = []
+    events = [] 
     
     # goid_blocks[0] is preamble. The rest alternate between GoID and the block text
     for i in range(1, len(goid_blocks), 2):
         goid = goid_blocks[i]
         block_text = goid_blocks[i+1]
         
-    # We only care about blocks that act as a proxy (both ACCEPT and CONNECT)/
-        if 'ACCEPT (Incoming)' in block_text and 'CONNECT (Outbound)' in block_text:
+        # Check for proxy services (like search) that handle both ACCEPT and CONNECT
+        if 'ACCEPT' in block_text and 'CONNECT' in block_text:
             
-            # Extract Traceparent for ACCEPT
-            accept_match = re.search(r'ACCEPT.*?Traceparent: 00-([a-f0-9]{32})-([a-f0-9]{16})-01', block_text, re.DOTALL)
-            # Extract Traceparent for CONNECT
-            connect_match = re.search(r'CONNECT.*?Traceparent: 00-([a-f0-9]{32})-([a-f0-9]{16})-01', block_text, re.DOTALL)
+            # Case-insensitive match for traceparent header in eBPF socket dump
+            accept_match = re.search(
+                r'ACCEPT.*?traceparent:\s*00-([a-f0-9]{32})-([a-f0-9]{16})', 
+                block_text, 
+                re.DOTALL | re.IGNORECASE
+            )
+            connect_match = re.search(
+                r'CONNECT.*?traceparent:\s*00-([a-f0-9]{32})-([a-f0-9]{16})', 
+                block_text, 
+                re.DOTALL | re.IGNORECASE
+            )
             
             if accept_match and connect_match:
                 trace_id_accept = accept_match.group(1)
@@ -56,7 +64,7 @@ def parse_server1_ebpf_logs(file_path):
 
 def check_causality_in_jaeger(trace_id, accept_span_id, connect_span_id):
     """
-    Queries Jaeger and verifies that the connect_span is a child/descendant of the accept_span.
+    Queries Jaeger and verifies that connect_span is a child/descendant of accept_span.
     """
     url = f"{JAEGER_API_URL}{trace_id}"
     try:
@@ -74,14 +82,13 @@ def check_causality_in_jaeger(trace_id, accept_span_id, connect_span_id):
     except requests.exceptions.RequestException as e:
         return "[ERROR]", f"Failed to connect to Jaeger API: {e}"
 
-    # 1. Verify both spans actually exist in the Jaeger Trace
+    # 1. Verify both spans exist in the Jaeger Trace
     if accept_span_id not in span_map:
         return "[FAIL]", f"Incoming ACCEPT Span ({accept_span_id}) missing in Jaeger"
     if connect_span_id not in span_map:
         return "[FAIL]", f"Outgoing CONNECT Span ({connect_span_id}) missing in Jaeger"
 
-    # 2. Verify Causality (Do they belong to the same logical request?)
-    # We traverse UP the tree from the CONNECT span. If we hit the ACCEPT span, they are causally linked.
+    # 2. Verify Causality by traversing up the tree from CONNECT to ACCEPT
     current_span_id = connect_span_id
     visited = set()
     
@@ -89,7 +96,6 @@ def check_causality_in_jaeger(trace_id, accept_span_id, connect_span_id):
         if current_span_id == accept_span_id:
             return "[PASS]", "CONNECT is a direct descendant of ACCEPT (Same Request Flow)"
             
-        # Prevent infinite loops in case of malformed trace graphs
         if current_span_id in visited:
             break
         visited.add(current_span_id)
@@ -98,7 +104,6 @@ def check_causality_in_jaeger(trace_id, accept_span_id, connect_span_id):
         if not current_span:
             break
             
-        # Find the parent of the current span
         parent_id = None
         for ref in current_span.get('references', []):
             if ref.get('refType') == 'CHILD_OF':
@@ -121,9 +126,8 @@ def main():
     print(f"[*] Found {len(proxy_events)} proxy request(s). Verifying against Jaeger...\n")
     
     passed_count = 0
-    count = 0
-    for event in proxy_events:
-        print(f"{count}=== GoID: {event['goid']} ===")
+    for count, event in enumerate(proxy_events):
+        print(f"{count} === GoID: {event['goid']} ===")
         print(f" ├─ Trace ID    : {event['trace_id']}")
         print(f" ├─ ACCEPT Span : {event['accept_span_id']}")
         print(f" ├─ CONNECT Span: {event['connect_span_id']}")
@@ -135,13 +139,13 @@ def main():
         )
         
         print(f" └─ Verification: {status} {reason}\n")
-        count += 1
         if status == "[PASS]":
             passed_count += 1
 
-    print("="*60)
+    print("=" * 60)
     print(f"SUMMARY: {passed_count}/{len(proxy_events)} requests successfully verified in Jaeger.")
-    print("="*60)
+    print("=" * 60)
+
 
 if __name__ == "__main__":
     main()

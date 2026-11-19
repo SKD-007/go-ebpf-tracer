@@ -115,8 +115,8 @@ func main() {
 
 	const (
 		numWorkers = 50
-		targetRPS  = 200
-		duration   = 10 * time.Second
+		targetRPS  = 1
+		duration   = 1 * time.Second
 	)
 
 	totalRequest := targetRPS * int(duration.Seconds())
